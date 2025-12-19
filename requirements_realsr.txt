@@ -1,0 +1,33 @@
+# Real-SR Professional Upscaling - Heavy Dependencies
+# WARNING: This requires PyTorch, torchvision, and OpenCV
+# May not work on all Android/Termux setups due to size and compatibility
+
+# Core requirements first
+-r requirements.txt
+
+# PyTorch (CPU version for mobile compatibility)
+# Choose ONE of these PyTorch options:
+
+# Option 1: Latest PyTorch CPU (recommended for desktop)
+torch>=1.7.0,<2.0.0
+torchvision>=0.8.0,<1.0.0
+
+# Option 2: Lighter PyTorch for mobile (uncomment if above fails)
+# torch==1.13.1+cpu
+# torchvision==0.14.1+cpu
+
+# Option 3: Even lighter for very constrained systems (uncomment if needed)
+# torch==1.11.0+cpu
+# torchvision==0.12.0+cpu
+
+# Real-SR components (require PyTorch)
+realesrgan==0.3.0
+basicsr==1.4.2
+
+# Additional ML dependencies
+facexlib>=0.2.5
+gfpgan>=1.3.5
+tqdm
+
+# Note: This setup requires ~2-3GB of dependencies
+# For mobile/Android, consider using API-based upscaling instead

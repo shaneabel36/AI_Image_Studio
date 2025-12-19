@@ -1,18 +1,18 @@
 # Professional Income Generation Setup
-# Optimized for Android/Termux with Real-SR
+# Lightweight version for Android/Termux compatibility
 
-# Core requirements (OpenCV-free)
+# Core requirements (lightweight)
 -r requirements.txt
 
-# Professional Real-SR for income generation
-# These are the critical dependencies for professional upscaling
-realesrgan==0.3.0
-basicsr==1.4.2
+# Professional image processing (no heavy ML dependencies)
+# Real-SR moved to requirements_realsr.txt due to PyTorch/size issues
 
-# Additional professional tools
-# torchvision  # Uncomment if you have PyTorch GPU support
-# facexlib     # Uncomment for face enhancement features
+# Lightweight professional tools
+psutil          # For memory monitoring
+tqdm            # For progress bars in batch processing
 
-# Performance optimization packages
-# psutil       # For memory monitoring
-# tqdm         # For progress bars in batch processing
+# API-based upscaling alternatives (lightweight)
+# waifu2x-ncnn-vulkan  # Uncomment for local GPU upscaling (if available)
+
+# Note: For Real-SR AI upscaling, use requirements_realsr.txt
+# But be aware it requires ~2-3GB of PyTorch dependencies

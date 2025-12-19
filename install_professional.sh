@@ -37,19 +37,40 @@ echo "🔧 Step 1: Installing core requirements..."
 pip install -r requirements.txt
 
 echo ""
-echo "🎯 Step 2: Installing Professional Real-SR (for income generation)..."
+echo "🎯 Step 2: Checking for professional upscaling options..."
 
-# Try to install Real-SR components
-if install_with_fallback "realesrgan==0.3.0" "realesrgan==0.2.5"; then
-    REALSR_SUCCESS=true
-else
-    REALSR_SUCCESS=false
-fi
+# Check if user wants heavy ML dependencies
+echo "Choose your professional setup:"
+echo "1. Lightweight Professional (API-based, ~50MB) - RECOMMENDED for Android"
+echo "2. Full AI Professional (Real-SR, ~2-3GB) - Best quality but heavy"
+echo "3. Skip professional features for now"
+echo ""
+read -p "Enter choice (1-3) [1]: " CHOICE
+CHOICE=${CHOICE:-1}
 
-if install_with_fallback "basicsr==1.4.2" "basicsr==1.3.5"; then
-    BASICSR_SUCCESS=true
+REALSR_SUCCESS=false
+API_UPSCALER_SUCCESS=true  # Always available (no dependencies)
+
+if [ "$CHOICE" = "2" ]; then
+    echo "Installing Full AI Professional (Real-SR)..."
+    echo "⚠️  This will download ~2-3GB of PyTorch dependencies"
+    
+    # Try to install Real-SR components
+    if install_with_fallback "realesrgan==0.3.0" "realesrgan==0.2.5"; then
+        if install_with_fallback "basicsr==1.4.2" "basicsr==1.3.5"; then
+            REALSR_SUCCESS=true
+            echo "✅ Full AI Professional installed"
+        fi
+    fi
+    
+    if [ "$REALSR_SUCCESS" = false ]; then
+        echo "❌ Full AI installation failed, falling back to Lightweight Professional"
+    fi
+elif [ "$CHOICE" = "1" ]; then
+    echo "✅ Lightweight Professional selected - no heavy dependencies needed"
 else
-    BASICSR_SUCCESS=false
+    echo "⚠️  Skipping professional features"
+    API_UPSCALER_SUCCESS=false
 fi
 
 echo ""
@@ -80,12 +101,15 @@ echo ""
 echo "📊 Installation Summary:"
 echo "======================="
 
-if [ "$REALSR_SUCCESS" = true ] && [ "$BASICSR_SUCCESS" = true ]; then
-    echo "✅ Real-SR: AVAILABLE (Professional income generation ready!)"
-    PROFESSIONAL_MODE=true
+if [ "$REALSR_SUCCESS" = true ]; then
+    echo "✅ Full AI Professional: AVAILABLE (Real-SR with PyTorch)"
+    PROFESSIONAL_MODE="full"
+elif [ "$API_UPSCALER_SUCCESS" = true ]; then
+    echo "✅ Lightweight Professional: AVAILABLE (API-based upscaling)"
+    PROFESSIONAL_MODE="lightweight"
 else
-    echo "❌ Real-SR: NOT AVAILABLE (Will use traditional upscaling)"
-    PROFESSIONAL_MODE=false
+    echo "❌ Professional Features: NOT AVAILABLE (Basic mode only)"
+    PROFESSIONAL_MODE="basic"
 fi
 
 if [ "$OPENCV_AVAILABLE" = true ]; then
@@ -95,15 +119,22 @@ else
 fi
 
 echo ""
-if [ "$PROFESSIONAL_MODE" = true ]; then
-    echo "🎉 PROFESSIONAL MODE ENABLED!"
-    echo "   💰 Your AI Image Studio is ready for income generation"
-    echo "   🎯 Real-SR AI upscaling available"
-    echo "   📈 Market-competitive image quality"
+if [ "$PROFESSIONAL_MODE" = "full" ]; then
+    echo "🎉 FULL PROFESSIONAL MODE ENABLED!"
+    echo "   💰 Maximum income generation potential"
+    echo "   🎯 Real-SR AI upscaling (best quality)"
+    echo "   📈 Market-leading image quality"
+    echo "   ⚠️  Uses ~2-3GB of dependencies"
+elif [ "$PROFESSIONAL_MODE" = "lightweight" ]; then
+    echo "🚀 LIGHTWEIGHT PROFESSIONAL MODE ENABLED!"
+    echo "   💰 Professional income generation ready"
+    echo "   🎯 API-based AI upscaling (excellent quality)"
+    echo "   📱 Perfect for Android/mobile devices"
+    echo "   ✅ Only ~50MB of dependencies"
 else
     echo "⚠️  BASIC MODE ONLY"
     echo "   📝 Traditional upscaling available"
-    echo "   💡 Consider fixing Real-SR installation for better income potential"
+    echo "   💡 Run script again to enable professional features"
 fi
 
 echo ""

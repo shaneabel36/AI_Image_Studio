@@ -33,6 +33,16 @@ except ImportError:
 # Aliases for compatibility
 ESRGAN_AVAILABLE = REALSR_AVAILABLE  # Alias for backward compatibility
 
+# Lightweight API upscaler (no heavy dependencies)
+try:
+    from api_upscaler import api_upscaler
+    API_UPSCALER_AVAILABLE = True
+    logger.info("API upscaler loaded - Professional upscaling available without heavy dependencies")
+except ImportError:
+    API_UPSCALER_AVAILABLE = False
+    api_upscaler = None
+    logger.warning("API upscaler not available")
+
 import numpy as np
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw
@@ -453,15 +463,24 @@ class ImageWorkflowAutomator:
     def professional_upscale_image(self, image_path: str, scale_factor: int = 4, quality: str = 'best') -> str:
         """Professional AI upscaling with smart fallback system"""
         try:
-            # Try Professional Real-SR first (best quality for income generation)
+            # Method 1: Try Professional Real-SR first (best quality, but heavy dependencies)
             if REALSR_AVAILABLE and professional_upscaler:
                 try:
                     logger.info(f"Using Professional AI upscaling (Real-SR) - {quality} quality")
                     return professional_upscaler.professional_upscale(image_path, scale_factor, quality)
                 except Exception as e:
-                    logger.warning(f"Real-SR failed, falling back to traditional methods: {e}")
+                    logger.warning(f"Real-SR failed, trying API upscaler: {e}")
             
-            # Fallback to OpenCV/PIL
+            # Method 2: Try API-based professional upscaling (lightweight, good quality)
+            if API_UPSCALER_AVAILABLE and api_upscaler:
+                try:
+                    logger.info(f"Using API-based professional upscaling - {quality} quality")
+                    return api_upscaler.professional_upscale(image_path, scale_factor, quality)
+                except Exception as e:
+                    logger.warning(f"API upscaler failed, falling back to traditional methods: {e}")
+            
+            # Method 3: Fallback to OpenCV/PIL
+            logger.info("Using traditional upscaling methods")
             return self._fallback_upscale(image_path, scale_factor)
             
         except Exception as e:
@@ -1048,18 +1067,27 @@ def upscale_image():
 
 @app.route('/workflow/upscale/status', methods=['GET'])
 def upscale_status():
-    """Get Real-SR upscaling capabilities status"""
+    """Get professional upscaling capabilities status"""
     return jsonify({
         'realsr_available': REALSR_AVAILABLE,
+        'api_upscaler_available': API_UPSCALER_AVAILABLE,
         'opencv_available': OPENCV_AVAILABLE,
-        'professional_mode': REALSR_AVAILABLE and professional_upscaler is not None,
-        'supported_qualities': ['best', 'fast', 'balanced'] if REALSR_AVAILABLE else ['standard'],
-        'max_scale_factor': 4 if REALSR_AVAILABLE else 8,
-        'recommended_for_income': REALSR_AVAILABLE,
+        'professional_mode': REALSR_AVAILABLE or API_UPSCALER_AVAILABLE,
+        'lightweight_professional': API_UPSCALER_AVAILABLE and not REALSR_AVAILABLE,
+        'supported_qualities': ['best', 'fast', 'balanced'] if (REALSR_AVAILABLE or API_UPSCALER_AVAILABLE) else ['standard'],
+        'max_scale_factor': 4 if (REALSR_AVAILABLE or API_UPSCALER_AVAILABLE) else 8,
+        'recommended_for_income': REALSR_AVAILABLE or API_UPSCALER_AVAILABLE,
+        'dependency_info': {
+            'heavy_ml_deps': REALSR_AVAILABLE,  # PyTorch, torchvision, etc.
+            'lightweight_api': API_UPSCALER_AVAILABLE,  # No heavy dependencies
+            'basic_only': not (REALSR_AVAILABLE or API_UPSCALER_AVAILABLE)
+        },
         'model_status': {
             'x4_professional': 'x4_professional' in (professional_upscaler.realsr_models if professional_upscaler else {}),
-            'x2_fast': 'x2_fast' in (professional_upscaler.realsr_models if professional_upscaler else {})
-        } if professional_upscaler else {}
+            'x2_fast': 'x2_fast' in (professional_upscaler.realsr_models if professional_upscaler else {}),
+            'api_waifu2x': API_UPSCALER_AVAILABLE,
+            'enhanced_local': API_UPSCALER_AVAILABLE
+        }
     })
 
 @app.route('/workflow/delete', methods=['POST'])

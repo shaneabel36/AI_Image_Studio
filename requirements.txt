@@ -11,14 +11,13 @@ blinker==1.6.3
 openai==1.3.0
 requests==2.31.0
 
-# Image processing dependencies
-# opencv-python==4.8.1.78  # Optional - see requirements_opencv.txt for OpenCV
-numpy==1.24.3
-Pillow==10.0.1
+# Image processing dependencies (Android/Termux compatible)
+numpy>=1.21.0,<1.25.0  # Compatible range for Android
+Pillow>=9.0.0
 
-# Professional AI upscaling - Real-SR (for income generation)
-realesrgan==0.3.0
-basicsr==1.4.2
+# Professional AI upscaling - Real-SR (heavy dependencies - see requirements_realsr.txt)
+# realesrgan==0.3.0  # Requires PyTorch, torchvision, OpenCV - moved to separate file
+# basicsr==1.4.2     # Heavy ML dependencies - moved to separate file
 
 # Optional: Face enhancement (comment out if installation fails on Termux)
 # gfpgan==1.3.8
