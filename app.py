@@ -9,7 +9,15 @@ import base64
 import requests
 from datetime import datetime
 from typing import List, Dict, Optional
-import cv2
+try:
+    import cv2
+    OPENCV_AVAILABLE = True
+    logger.info("OpenCV imported successfully")
+except ImportError:
+    OPENCV_AVAILABLE = False
+    logger.warning("OpenCV not available - some features will be disabled")
+    cv2 = None
+
 import numpy as np
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw
@@ -287,26 +295,45 @@ class ImageWorkflowAutomator:
         return results
     
     def simple_upscale(self, image_path: str, scale_factor: int = 2) -> str:
-        """Simple upscaling using OpenCV (fallback when ESRGAN not available)"""
+        """Simple upscaling using PIL (OpenCV-free fallback)"""
         try:
-            img = cv2.imread(image_path)
-            if img is None:
-                raise ValueError(f"Could not load image: {image_path}")
-            
-            height, width = img.shape[:2]
-            new_width = int(width * scale_factor)
-            new_height = int(height * scale_factor)
-            
-            # Use INTER_CUBIC for better quality
-            upscaled = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
-            
-            # Save upscaled image
-            base_name = os.path.splitext(os.path.basename(image_path))[0]
-            upscaled_path = os.path.join(self.dirs['upscaled'], f"{base_name}_upscaled_{scale_factor}x.png")
-            
-            cv2.imwrite(upscaled_path, upscaled)
-            logger.info(f"Simple upscale complete: {upscaled_path}")
-            return upscaled_path
+            if not OPENCV_AVAILABLE:
+                # Use PIL for upscaling when OpenCV is not available
+                with Image.open(image_path) as img:
+                    width, height = img.size
+                    new_width = int(width * scale_factor)
+                    new_height = int(height * scale_factor)
+                    
+                    # Use LANCZOS for better quality upscaling
+                    upscaled = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                    
+                    # Save upscaled image
+                    base_name = os.path.splitext(os.path.basename(image_path))[0]
+                    upscaled_path = os.path.join(self.dirs['upscaled'], f"{base_name}_upscaled_{scale_factor}x.png")
+                    
+                    upscaled.save(upscaled_path, 'PNG')
+                    logger.info(f"PIL upscale complete: {upscaled_path}")
+                    return upscaled_path
+            else:
+                # Use OpenCV when available
+                img = cv2.imread(image_path)
+                if img is None:
+                    raise ValueError(f"Could not load image: {image_path}")
+                
+                height, width = img.shape[:2]
+                new_width = int(width * scale_factor)
+                new_height = int(height * scale_factor)
+                
+                # Use INTER_CUBIC for better quality
+                upscaled = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
+                
+                # Save upscaled image
+                base_name = os.path.splitext(os.path.basename(image_path))[0]
+                upscaled_path = os.path.join(self.dirs['upscaled'], f"{base_name}_upscaled_{scale_factor}x.png")
+                
+                cv2.imwrite(upscaled_path, upscaled)
+                logger.info(f"OpenCV upscale complete: {upscaled_path}")
+                return upscaled_path
             
         except Exception as e:
             logger.error(f"Error in simple upscaling: {e}")
