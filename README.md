@@ -42,19 +42,24 @@ pkg update && pkg upgrade
 pkg install python git
 ```
 
-### Step 4: Clone or create the project
+### Step 4: Clone AI Image Studio
 ```bash
-# Create project directory
-mkdir flask-ai-app
-cd flask-ai-app
-
-# Copy the app files (or clone from repository)
+# Clone your professional AI Image Studio
+git clone https://github.com/shaneabel36/AI_Image_Studio.git
+cd AI_Image_Studio
 ```
 
-### Step 5: Install Python dependencies
+### Step 5: Professional Installation (Recommended)
 ```bash
-pip install -r requirements.txt
+# Run the smart installation script
+./install_professional.sh
 ```
+
+**Alternative Installation Options:**
+- **Full Features**: `pip install -r requirements_opencv.txt`
+- **Professional Real-SR**: `pip install -r requirements_professional.txt`  
+- **Minimal Setup**: `pip install -r requirements_minimal.txt`
+- **Android Optimized**: `pip install -r requirements_no_opencv.txt`
 
 ### Step 6: Get OpenRouter API Key
 1. Visit [OpenRouter.ai](https://openrouter.ai)

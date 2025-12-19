@@ -1,0 +1,18 @@
+# OpenCV Requirements - For Full Feature Set
+# Use this if you can install OpenCV successfully
+
+# Core requirements first
+-r requirements.txt
+
+# OpenCV options (try in order of preference)
+# Option 1: Latest OpenCV (best performance)
+opencv-python==4.8.1.78
+
+# Option 2: If above fails, try headless version
+# opencv-python-headless==4.8.1.78
+
+# Option 3: If still fails, try older stable version
+# opencv-python-headless==4.5.5.64
+
+# Option 4: Minimal OpenCV for basic functionality
+# opencv-contrib-python-headless==4.5.5.64
