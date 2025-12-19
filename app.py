@@ -291,25 +291,23 @@ class ImageWorkflowAutomator:
         """Get safety parameters based on current safety level"""
         base_params = {}
         
+        # OpenAI/OpenRouter doesn't use these safety parameters in the API
+        # Safety is handled by the models themselves
         if self.safety_level == "strict":
             base_params.update({
-                "safety_tolerance": "low",
                 "content_filter": True,
                 "safe_mode": True
             })
         elif self.safety_level == "moderate":
             base_params.update({
-                "safety_tolerance": "medium",
                 "content_filter": self.content_filter
             })
         elif self.safety_level == "permissive":
             base_params.update({
-                "safety_tolerance": "high",
                 "content_filter": False
             })
         elif self.safety_level == "off":
             base_params.update({
-                "safety_tolerance": "none",
                 "content_filter": False,
                 "safe_mode": False
             })
@@ -317,8 +315,11 @@ class ImageWorkflowAutomator:
         # Apply custom overrides
         base_params.update(self.custom_safety_params)
         
-        # Filter out None values and parameters not supported by the API
-        return {k: v for k, v in base_params.items() if v is not None}
+        # Filter out None values and parameters not supported by the OpenAI API
+        # OpenAI Images API only supports: model, prompt, n, size, response_format, user
+        # Safety is handled by the models themselves, not via API parameters
+        supported_params = ['model', 'prompt', 'n', 'size', 'response_format', 'user']
+        return {}
     
     def generate_batch(self) -> List[str]:
         """Generate batch of images with error handling"""
