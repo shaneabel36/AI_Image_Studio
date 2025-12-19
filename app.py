@@ -14,6 +14,16 @@ from typing import List, Dict, Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    logger.info("Environment variables loaded from .env file")
+except ImportError:
+    logger.warning("python-dotenv not installed - .env file won't be loaded automatically")
+except Exception as e:
+    logger.warning(f"Could not load .env file: {e}")
+
 try:
     import cv2
     OPENCV_AVAILABLE = True
@@ -880,11 +890,15 @@ def workflow_config():
     
     if request.method == 'POST':
         try:
+            # Get API key from form or environment
             api_key = request.form.get('api_key', '').strip()
+            if not api_key:
+                api_key = os.getenv('OPENROUTER_API_KEY', '').strip()
+            
             batch_size = int(request.form.get('batch_size', 3))
             base_prompt = request.form.get('base_prompt', 'A beautiful landscape in artistic style').strip()
-            gen_model = request.form.get('gen_model', 'black-forest-labs/flux-schnell')
-            vision_model = request.form.get('vision_model', 'x-ai/grok-vision-beta')
+            gen_model = request.form.get('gen_model', os.getenv('DEFAULT_GEN_MODEL', 'black-forest-labs/flux-schnell'))
+            vision_model = request.form.get('vision_model', os.getenv('DEFAULT_VISION_MODEL', 'x-ai/grok-vision-beta'))
             
             # Safety parameters
             safety_level = request.form.get('safety_level', 'moderate')
@@ -936,7 +950,15 @@ def workflow_config():
             'content_filter': getattr(workflow_automator, 'content_filter', True)
         }
     
-    return render_template('workflow_config.html', config=current_config)
+    # Add environment variables for form defaults
+    env_config = {
+        'env_api_key': os.getenv('OPENROUTER_API_KEY', ''),
+        'env_gen_model': os.getenv('DEFAULT_GEN_MODEL', 'black-forest-labs/flux-schnell'),
+        'env_vision_model': os.getenv('DEFAULT_VISION_MODEL', 'x-ai/grok-vision-beta'),
+        'env_safety_level': os.getenv('DEFAULT_SAFETY_LEVEL', 'moderate')
+    }
+    
+    return render_template('workflow_config.html', config=current_config, env_config=env_config)
 
 @app.route('/workflow/start', methods=['POST'])
 def start_workflow():
