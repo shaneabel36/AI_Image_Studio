@@ -9,6 +9,11 @@ import base64
 import requests
 from datetime import datetime
 from typing import List, Dict, Optional
+
+# Set up logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 try:
     import cv2
     OPENCV_AVAILABLE = True
@@ -48,9 +53,7 @@ from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw
 import io
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Logger already configured above
 
 app = Flask(__name__)
 
