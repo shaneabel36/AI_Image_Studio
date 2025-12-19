@@ -18,6 +18,21 @@ except ImportError:
     logger.warning("OpenCV not available - some features will be disabled")
     cv2 = None
 
+# Professional AI upscaling imports (Real-SR)
+try:
+    from realesrgan import RealESRGANer
+    from basicsr.archs.rrdbnet_arch import RRDBNet
+    REALSR_AVAILABLE = True
+    logger.info("Real-SR imported successfully - Professional upscaling enabled")
+except ImportError:
+    REALSR_AVAILABLE = False
+    logger.warning("Real-SR not available - Using fallback upscaling")
+    RealESRGANer = None
+    RRDBNet = None
+
+# Aliases for compatibility
+ESRGAN_AVAILABLE = REALSR_AVAILABLE  # Alias for backward compatibility
+
 import numpy as np
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw
@@ -49,6 +64,147 @@ workflow_status = {
     'error': None,
     'results': []
 }
+
+class ProfessionalUpscaler:
+    """Professional AI upscaling using Real-SR for income generation"""
+    
+    def __init__(self):
+        self.realsr_models = {}
+        self.model_urls = {
+            'RealESRGAN_x4plus': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth',
+            'RealESRGAN_x2plus': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth',
+            'RealESRGAN_x4plus_anime_6B': 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/RealESRGAN_x4plus_anime_6B.pth'
+        }
+        self.models_dir = os.path.join(os.getcwd(), 'realsr_models')
+        os.makedirs(self.models_dir, exist_ok=True)
+        
+        if REALSR_AVAILABLE:
+            self._initialize_models()
+    
+    def _initialize_models(self):
+        """Initialize Real-SR models for professional upscaling"""
+        try:
+            # Real-SR x4 - Best for general images (income generation quality)
+            model_path = self._ensure_model_downloaded('RealESRGAN_x4plus')
+            if model_path:
+                model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
+                self.realsr_models['x4_professional'] = RealESRGANer(
+                    scale=4,
+                    model_path=model_path,
+                    model=model,
+                    tile=512,  # Optimize for mobile memory
+                    tile_pad=10,
+                    pre_pad=0,
+                    half=False  # Set to True if you have GPU
+                )
+                logger.info("Real-SR x4 model loaded - Professional quality enabled for income generation")
+            
+            # Real-SR x2 - Faster processing for quick turnaround
+            model_path = self._ensure_model_downloaded('RealESRGAN_x2plus')
+            if model_path:
+                model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=2)
+                self.realsr_models['x2_fast'] = RealESRGANer(
+                    scale=2,
+                    model_path=model_path,
+                    model=model,
+                    tile=512,
+                    tile_pad=10,
+                    pre_pad=0,
+                    half=False
+                )
+                logger.info("Real-SR x2 model loaded - Fast processing enabled")
+                
+        except Exception as e:
+            logger.error(f"Error initializing Real-SR models: {e}")
+    
+    def _ensure_model_downloaded(self, model_name: str) -> str:
+        """Download Real-SR model if not present"""
+        model_path = os.path.join(self.models_dir, f"{model_name}.pth")
+        
+        if os.path.exists(model_path):
+            return model_path
+        
+        try:
+            logger.info(f"Downloading {model_name} model for professional upscaling...")
+            url = self.model_urls[model_name]
+            
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
+            
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded = 0
+            
+            with open(model_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total_size > 0:
+                            progress = (downloaded / total_size) * 100
+                            if downloaded % (1024 * 1024) == 0:  # Log every MB
+                                logger.info(f"Downloading {model_name}: {progress:.1f}%")
+            
+            logger.info(f"Successfully downloaded {model_name} model")
+            return model_path
+            
+        except Exception as e:
+            logger.error(f"Failed to download {model_name}: {e}")
+            return None
+    
+    def professional_upscale(self, image_path: str, scale_factor: int = 4, quality: str = 'best') -> str:
+        """Professional AI upscaling using Real-SR for income generation"""
+        try:
+            if not REALSR_AVAILABLE:
+                raise ValueError("Real-SR not available - install with: pip install realesrgan basicsr")
+            
+            # Choose model based on quality preference for income generation
+            if quality == 'best' and scale_factor == 4 and 'x4_professional' in self.realsr_models:
+                upscaler = self.realsr_models['x4_professional']
+                actual_scale = 4
+                method = "Real-SR Professional"
+            elif quality == 'fast' and scale_factor <= 2 and 'x2_fast' in self.realsr_models:
+                upscaler = self.realsr_models['x2_fast']
+                actual_scale = 2
+                method = "Real-SR Fast"
+            elif 'x4_professional' in self.realsr_models:
+                upscaler = self.realsr_models['x4_professional']
+                actual_scale = 4
+                method = "Real-SR Professional"
+            else:
+                raise ValueError("No suitable Real-SR model available")
+            
+            # Load and process image
+            logger.info(f"Starting {method} upscaling: {quality} quality, {actual_scale}x scale for income generation")
+            
+            # Read image
+            img = cv2.imread(image_path, cv2.IMREAD_COLOR) if OPENCV_AVAILABLE else None
+            if img is None:
+                # Fallback to PIL
+                pil_img = Image.open(image_path)
+                img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+            
+            # Professional AI upscaling
+            output, _ = upscaler.enhance(img, outscale=actual_scale)
+            
+            # Save result with Real-SR branding
+            base_name = os.path.splitext(os.path.basename(image_path))[0]
+            output_path = os.path.join(
+                os.path.dirname(image_path).replace('Generated', 'Upscaled'),
+                f"{base_name}_RealSR_{actual_scale}x_{quality}.png"
+            )
+            
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            cv2.imwrite(output_path, output)
+            
+            logger.info(f"Professional Real-SR upscaling complete: {output_path}")
+            return output_path
+            
+        except Exception as e:
+            logger.error(f"Professional Real-SR upscaling failed: {e}")
+            raise
+
+# Initialize professional upscaler
+professional_upscaler = ProfessionalUpscaler() if REALSR_AVAILABLE else None
 
 class ImageWorkflowAutomator:
     """Enhanced Image Workflow Automator with improved error handling"""
@@ -294,27 +450,28 @@ class ImageWorkflowAutomator:
         self.update_status(80, f"Analysis complete. Sorted {len(image_paths) - len(results['errors'])} images")
         return results
     
-    def simple_upscale(self, image_path: str, scale_factor: int = 2) -> str:
-        """Simple upscaling using PIL (OpenCV-free fallback)"""
+    def professional_upscale_image(self, image_path: str, scale_factor: int = 4, quality: str = 'best') -> str:
+        """Professional AI upscaling with smart fallback system"""
         try:
-            if not OPENCV_AVAILABLE:
-                # Use PIL for upscaling when OpenCV is not available
-                with Image.open(image_path) as img:
-                    width, height = img.size
-                    new_width = int(width * scale_factor)
-                    new_height = int(height * scale_factor)
-                    
-                    # Use LANCZOS for better quality upscaling
-                    upscaled = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                    
-                    # Save upscaled image
-                    base_name = os.path.splitext(os.path.basename(image_path))[0]
-                    upscaled_path = os.path.join(self.dirs['upscaled'], f"{base_name}_upscaled_{scale_factor}x.png")
-                    
-                    upscaled.save(upscaled_path, 'PNG')
-                    logger.info(f"PIL upscale complete: {upscaled_path}")
-                    return upscaled_path
-            else:
+            # Try Professional Real-SR first (best quality for income generation)
+            if REALSR_AVAILABLE and professional_upscaler:
+                try:
+                    logger.info(f"Using Professional AI upscaling (Real-SR) - {quality} quality")
+                    return professional_upscaler.professional_upscale(image_path, scale_factor, quality)
+                except Exception as e:
+                    logger.warning(f"Real-SR failed, falling back to traditional methods: {e}")
+            
+            # Fallback to OpenCV/PIL
+            return self._fallback_upscale(image_path, scale_factor)
+            
+        except Exception as e:
+            logger.error(f"All upscaling methods failed: {e}")
+            raise
+    
+    def _fallback_upscale(self, image_path: str, scale_factor: int = 2) -> str:
+        """Fallback upscaling using OpenCV or PIL"""
+        try:
+            if OPENCV_AVAILABLE:
                 # Use OpenCV when available
                 img = cv2.imread(image_path)
                 if img is None:
@@ -329,15 +486,37 @@ class ImageWorkflowAutomator:
                 
                 # Save upscaled image
                 base_name = os.path.splitext(os.path.basename(image_path))[0]
-                upscaled_path = os.path.join(self.dirs['upscaled'], f"{base_name}_upscaled_{scale_factor}x.png")
+                upscaled_path = os.path.join(self.dirs['upscaled'], f"{base_name}_OpenCV_{scale_factor}x.png")
                 
                 cv2.imwrite(upscaled_path, upscaled)
-                logger.info(f"OpenCV upscale complete: {upscaled_path}")
+                logger.info(f"OpenCV fallback upscale complete: {upscaled_path}")
                 return upscaled_path
+            else:
+                # Use PIL for upscaling when OpenCV is not available
+                with Image.open(image_path) as img:
+                    width, height = img.size
+                    new_width = int(width * scale_factor)
+                    new_height = int(height * scale_factor)
+                    
+                    # Use LANCZOS for better quality upscaling
+                    upscaled = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                    
+                    # Save upscaled image
+                    base_name = os.path.splitext(os.path.basename(image_path))[0]
+                    upscaled_path = os.path.join(self.dirs['upscaled'], f"{base_name}_PIL_{scale_factor}x.png")
+                    
+                    upscaled.save(upscaled_path, 'PNG')
+                    logger.info(f"PIL fallback upscale complete: {upscaled_path}")
+                    return upscaled_path
             
         except Exception as e:
-            logger.error(f"Error in simple upscaling: {e}")
+            logger.error(f"Error in fallback upscaling: {e}")
             raise
+    
+    # Keep old method name for compatibility
+    def simple_upscale(self, image_path: str, scale_factor: int = 2) -> str:
+        """Legacy method - redirects to professional upscaling"""
+        return self.professional_upscale_image(image_path, scale_factor, 'fast')
     
     def run_workflow(self, progress_callback=None) -> Dict:
         """Run complete workflow with progress tracking"""
@@ -830,7 +1009,7 @@ def serve_image(category, filename):
 
 @app.route('/workflow/upscale', methods=['POST'])
 def upscale_image():
-    """Upscale selected image"""
+    """Professional AI upscaling with Real-SR for income generation"""
     global workflow_automator
     
     if not workflow_automator:
@@ -838,18 +1017,26 @@ def upscale_image():
     
     try:
         image_path = request.form.get('image_path')
-        scale_factor = int(request.form.get('scale_factor', 2))
+        scale_factor = int(request.form.get('scale_factor', 4))  # Default to 4x for professional quality
+        quality = request.form.get('quality', 'best')  # 'best', 'fast', 'balanced'
         
         if not image_path or not os.path.exists(image_path):
             return jsonify({'success': False, 'error': 'Image not found'})
         
-        # Upscale image
-        upscaled_path = workflow_automator.simple_upscale(image_path, scale_factor)
+        # Professional AI upscaling with Real-SR
+        upscaled_path = workflow_automator.professional_upscale_image(image_path, scale_factor, quality)
+        
+        # Determine method used for client feedback
+        method = "Real-SR AI" if REALSR_AVAILABLE and professional_upscaler else "Traditional"
         
         return jsonify({
             'success': True, 
-            'message': f'Image upscaled successfully',
+            'message': f'Image upscaled successfully using {method} ({quality} quality)',
             'upscaled_path': upscaled_path,
+            'method': method,
+            'quality': quality,
+            'scale_factor': scale_factor,
+            'professional_mode': REALSR_AVAILABLE,
             'upscaled_url': url_for('serve_image', 
                                   category='upscaled', 
                                   filename=os.path.basename(upscaled_path))
@@ -858,6 +1045,22 @@ def upscale_image():
     except Exception as e:
         logger.error(f"Error upscaling image: {e}")
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/workflow/upscale/status', methods=['GET'])
+def upscale_status():
+    """Get Real-SR upscaling capabilities status"""
+    return jsonify({
+        'realsr_available': REALSR_AVAILABLE,
+        'opencv_available': OPENCV_AVAILABLE,
+        'professional_mode': REALSR_AVAILABLE and professional_upscaler is not None,
+        'supported_qualities': ['best', 'fast', 'balanced'] if REALSR_AVAILABLE else ['standard'],
+        'max_scale_factor': 4 if REALSR_AVAILABLE else 8,
+        'recommended_for_income': REALSR_AVAILABLE,
+        'model_status': {
+            'x4_professional': 'x4_professional' in (professional_upscaler.realsr_models if professional_upscaler else {}),
+            'x2_fast': 'x2_fast' in (professional_upscaler.realsr_models if professional_upscaler else {})
+        } if professional_upscaler else {}
+    })
 
 @app.route('/workflow/delete', methods=['POST'])
 def delete_image():
