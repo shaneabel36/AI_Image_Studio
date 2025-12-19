@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+
+{% block title %}AI Image Generator - Flask App{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1>🎨 AI Image Generator</h1>
+    <a href="/" class="btn btn-primary">🏠 Back to Dashboard</a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div style="padding: 15px; margin: 20px 0; border-radius: 10px; 
+                        background: {% if category == 'error' %}#fed7d7{% else %}#c6f6d5{% endif %}; 
+                        color: {% if category == 'error' %}#c53030{% else %}#2f855a{% endif %};">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="nav-tabs">
+    <button class="nav-tab active" onclick="showGeneratorTab('single')">🖼️ Single Image</button>
+    <button class="nav-tab" onclick="showGeneratorTab('batch')">📚 Batch Generate</button>
+    <button class="nav-tab" onclick="showGeneratorTab('advanced')">⚙️ Advanced</button>
+</div>
+
+<!-- Single Image Generation Tab -->
+<div id="generator-single" class="tab-content active">
+    <div class="system-info">
+        <h3>🖼️ Single Image Generation</h3>
+        <p>Generate a single high-quality image with custom settings</p>
+    </div>
+
+    <form id="singleImageForm" onsubmit="generateSingleImage(event)">
+        <div class="form-group">
+            <label for="single_prompt">🎯 Image Prompt:</label>
+            <textarea id="single_prompt" name="prompt" class="form-control" rows="4" 
+                      placeholder="Describe the image you want to generate (e.g., 'A majestic dragon flying over a medieval castle at sunset, digital art style, highly detailed')" required></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="single_model">🤖 Generation Model:</label>
+            <select id="single_model" name="model" class="form-control">
+                <option value="black-forest-labs/flux-schnell">Flux Schnell (Fast & Good)</option>
+                <option value="black-forest-labs/flux-pro">Flux Pro (Highest Quality)</option>
+                <option value="stability-ai/stable-diffusion-3-medium">Stable Diffusion 3</option>
+                <option value="stability-ai/stable-diffusion-xl-base-1.0">SDXL Base</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="single_size">📐 Image Size:</label>
+            <select id="single_size" name="size" class="form-control">
+                <option value="1024x1024">Square (1024x1024)</option>
+                <option value="1024x768">Landscape (1024x768)</option>
+                <option value="768x1024">Portrait (768x1024)</option>
+                <option value="1152x896">Wide Landscape (1152x896)</option>
+                <option value="896x1152">Tall Portrait (896x1152)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="single_safety">🛡️ Safety Level:</label>
+            <select id="single_safety" name="safety_level" class="form-control" onchange="updateSingleSafetyDesc()">
+                <option value="strict">🔴 Strict - Maximum filtering</option>
+                <option value="moderate" selected>🟡 Moderate - Balanced (Default)</option>
+                <option value="permissive">🟠 Permissive - Minimal filtering</option>
+                <option value="off">⚪ Off - No filtering</option>
+            </select>
+            <div id="single_safety_desc" style="margin-top: 8px; padding: 8px; border-radius: 6px; font-size: 0.85rem;"></div>
+        </div>
+
+        <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" id="single_content_filter" name="content_filter" checked style="transform: scale(1.2);">
+                <span>🚫 Additional Content Filter</span>
+            </label>
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary" id="singleGenerateBtn">🎨 Generate Image</button>
+        </div>
+    </form>
+</div>
+
+<!-- Batch Generation Tab -->
+<div id="generator-batch" class="tab-content">
+    <div class="system-info">
+        <h3>📚 Batch Image Generation</h3>
+        <p>Generate multiple images with variations or different prompts</p>
+    </div>
+
+    <form id="batchImageForm" onsubmit="generateBatchImages(event)">
+        <div class="form-group">
+            <label for="batch_base_prompt">🎯 Base Prompt:</label>
+            <textarea id="batch_base_prompt" name="base_prompt" class="form-control" rows="3" 
+                      placeholder="Base description that will be used for all images" required></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="batch_variations">🔄 Prompt Variations (one per line):</label>
+            <textarea id="batch_variations" name="variations" class="form-control" rows="5" 
+                      placeholder="- in watercolor style&#10;- as digital art&#10;- in photorealistic style&#10;- with dramatic lighting&#10;- in anime style"></textarea>
+            <small style="color: #718096;">Leave empty to generate variations automatically</small>
+        </div>
+
+        <div class="form-group">
+            <label for="batch_count">📊 Number of Images:</label>
+            <select id="batch_count" name="count" class="form-control">
+                <option value="2">2 Images</option>
+                <option value="3" selected>3 Images</option>
+                <option value="4">4 Images</option>
+                <option value="5">5 Images</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="batch_model">🤖 Generation Model:</label>
+            <select id="batch_model" name="model" class="form-control">
+                <option value="black-forest-labs/flux-schnell" selected>Flux Schnell (Fast & Good)</option>
+                <option value="black-forest-labs/flux-pro">Flux Pro (Highest Quality)</option>
+                <option value="stability-ai/stable-diffusion-3-medium">Stable Diffusion 3</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="batch_safety">🛡️ Safety Level:</label>
+            <select id="batch_safety" name="safety_level" class="form-control">
+                <option value="strict">🔴 Strict - Maximum filtering</option>
+                <option value="moderate" selected>🟡 Moderate - Balanced (Default)</option>
+                <option value="permissive">🟠 Permissive - Minimal filtering</option>
+                <option value="off">⚪ Off - No filtering</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" id="batch_auto_analyze" name="auto_analyze" checked style="transform: scale(1.2);">
+                <span>🔍 Auto-analyze and sort results</span>
+            </label>
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary" id="batchGenerateBtn">📚 Generate Batch</button>
+        </div>
+    </form>
+</div>
+
+<!-- Advanced Settings Tab -->
+<div id="generator-advanced" class="tab-content">
+    <div class="system-info">
+        <h3>⚙️ Advanced Generation Settings</h3>
+        <p>Fine-tune generation parameters for expert users</p>
+    </div>
+
+    <form id="advancedImageForm" onsubmit="generateAdvancedImage(event)">
+        <div class="form-group">
+            <label for="advanced_prompt">🎯 Detailed Prompt:</label>
+            <textarea id="advanced_prompt" name="prompt" class="form-control" rows="4" required></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="negative_prompt">🚫 Negative Prompt (what to avoid):</label>
+            <textarea id="negative_prompt" name="negative_prompt" class="form-control" rows="2" 
+                      placeholder="blurry, low quality, distorted, ugly, bad anatomy"></textarea>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="form-group">
+                <label for="advanced_model">🤖 Model:</label>
+                <select id="advanced_model" name="model" class="form-control">
+                    <option value="black-forest-labs/flux-schnell">Flux Schnell</option>
+                    <option value="black-forest-labs/flux-pro">Flux Pro</option>
+                    <option value="stability-ai/stable-diffusion-3-medium">SD3 Medium</option>
+                    <option value="stability-ai/stable-diffusion-xl-base-1.0">SDXL Base</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="advanced_size">📐 Size:</label>
+                <select id="advanced_size" name="size" class="form-control">
+                    <option value="1024x1024" selected>1024x1024</option>
+                    <option value="1024x768">1024x768</option>
+                    <option value="768x1024">768x1024</option>
+                    <option value="1152x896">1152x896</option>
+                    <option value="896x1152">896x1152</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="guidance_scale">🎛️ Guidance Scale: <span id="guidanceValue">7.5</span></label>
+            <input type="range" id="guidance_scale" name="guidance_scale" min="1" max="20" step="0.5" value="7.5" 
+                   onchange="updateGuidanceValue()" class="form-control">
+            <small style="color: #718096;">Higher values follow the prompt more closely (1-20)</small>
+        </div>
+
+        <div class="form-group">
+            <label for="steps">🔄 Inference Steps: <span id="stepsValue">30</span></label>
+            <input type="range" id="steps" name="steps" min="10" max="100" step="5" value="30" 
+                   onchange="updateStepsValue()" class="form-control">
+            <small style="color: #718096;">More steps = higher quality but slower generation (10-100)</small>
+        </div>
+
+        <div class="form-group">
+            <label for="seed">🌱 Seed (optional):</label>
+            <input type="number" id="seed" name="seed" class="form-control" 
+                   placeholder="Leave empty for random seed">
+            <small style="color: #718096;">Use same seed to reproduce results</small>
+        </div>
+
+        <div class="system-info" style="margin: 20px 0;">
+            <h4>🛡️ Safety & Content Controls</h4>
+        </div>
+
+        <div class="form-group">
+            <label for="advanced_safety">🔒 Safety Level:</label>
+            <select id="advanced_safety" name="safety_level" class="form-control" onchange="updateAdvancedSafetyDesc()">
+                <option value="strict">🔴 Strict - Maximum filtering</option>
+                <option value="moderate" selected>🟡 Moderate - Balanced</option>
+                <option value="permissive">🟠 Permissive - Minimal filtering</option>
+                <option value="off">⚪ Off - No filtering</option>
+            </select>
+            <div id="advanced_safety_desc" style="margin-top: 8px; padding: 8px; border-radius: 6px; font-size: 0.85rem;"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="advanced_content_filter" name="content_filter" checked style="transform: scale(1.2);">
+                    <span>🚫 Content Filter</span>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="advanced_safe_mode" name="safe_mode" style="transform: scale(1.2);">
+                    <span>🔒 Safe Mode</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary" id="advancedGenerateBtn">⚙️ Generate with Advanced Settings</button>
+        </div>
+    </form>
+</div>
+
+<!-- Results Section -->
+<div id="generationResults" style="display: none; margin-top: 30px;">
+    <div class="system-info">
+        <h3>✨ Generation Results</h3>
+        <div id="resultsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+            <!-- Results will be populated here -->
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+            <button onclick="hideResults()" class="btn" style="background: #e2e8f0; color: #4a5568;">Close Results</button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="generationLoading" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; color: white; text-align: center; padding-top: 20%;">
+    <div style="font-size: 3rem; margin-bottom: 20px;">🎨</div>
+    <h2 id="generationMessage">Generating your image...</h2>
+    <p>This may take a few moments. Please wait.</p>
+    <div style="background: #e2e8f0; border-radius: 10px; padding: 3px; margin: 20px auto; width: 300px;">
+        <div id="generationProgress" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 20px; border-radius: 8px; width: 0%; transition: width 0.3s ease;"></div>
+    </div>
+</div>
+
+<div class="footer">
+    <p>🎨 Create stunning AI-generated images with full control</p>
+</div>
+
+<script>
+    function showGeneratorTab(tab) {
+        // Hide all tabs
+        document.querySelectorAll('[id^="generator-"]').forEach(el => {
+            el.classList.remove('active');
+        });
+        
+        // Remove active class from nav tabs
+        document.querySelectorAll('.nav-tab').forEach(el => {
+            el.classList.remove('active');
+        });
+        
+        // Show selected tab
+        document.getElementById('generator-' + tab).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    function updateSingleSafetyDesc() {
+        updateSafetyDescription('single_safety', 'single_safety_desc');
+    }
+
+    function updateAdvancedSafetyDesc() {
+        updateSafetyDescription('advanced_safety', 'advanced_safety_desc');
+    }
+
+    function updateSafetyDescription(selectId, descId) {
+        const safetyLevel = document.getElementById(selectId).value;
+        const descriptionDiv = document.getElementById(descId);
+        
+        const descriptions = {
+            'strict': {
+                text: 'Maximum filtering - blocks most sensitive content',
+                color: '#fed7d7',
+                textColor: '#c53030'
+            },
+            'moderate': {
+                text: 'Balanced filtering - allows artistic expression',
+                color: '#fef5e7',
+                textColor: '#d69e2e'
+            },
+            'permissive': {
+                text: 'Minimal filtering - more creative freedom',
+                color: '#fed7d7',
+                textColor: '#dd6b20'
+            },
+            'off': {
+                text: 'No filtering - full creative control',
+                color: '#e2e8f0',
+                textColor: '#4a5568'
+            }
+        };
+        
+        const desc = descriptions[safetyLevel];
+        descriptionDiv.style.backgroundColor = desc.color;
+        descriptionDiv.style.color = desc.textColor;
+        descriptionDiv.textContent = desc.text;
+    }
+
+    function updateGuidanceValue() {
+        document.getElementById('guidanceValue').textContent = document.getElementById('guidance_scale').value;
+    }
+
+    function updateStepsValue() {
+        document.getElementById('stepsValue').textContent = document.getElementById('steps').value;
+    }
+
+    function generateSingleImage(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        
+        showLoading('Generating your image...');
+        
+        fetch('/generator/single', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                showResults([data.result]);
+            } else {
+                alert('Generation failed: ' + data.error);
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            alert('Generation failed');
+        });
+    }
+
+    function generateBatchImages(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        
+        showLoading('Generating batch images...');
+        
+        fetch('/generator/batch', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                showResults(data.results);
+            } else {
+                alert('Batch generation failed: ' + data.error);
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            alert('Batch generation failed');
+        });
+    }
+
+    function generateAdvancedImage(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        
+        showLoading('Generating with advanced settings...');
+        
+        fetch('/generator/advanced', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                showResults([data.result]);
+            } else {
+                alert('Advanced generation failed: ' + data.error);
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            alert('Advanced generation failed');
+        });
+    }
+
+    function showResults(results) {
+        const container = document.getElementById('resultsContainer');
+        container.innerHTML = '';
+        
+        results.forEach((result, index) => {
+            const resultDiv = document.createElement('div');
+            resultDiv.style.textAlign = 'center';
+            resultDiv.innerHTML = `
+                <img src="${result.url}" alt="Generated Image ${index + 1}" 
+                     style="width: 100%; max-width: 300px; border-radius: 10px; margin-bottom: 10px;">
+                <div style="font-size: 0.9rem; color: #4a5568;">
+                    <strong>Image ${index + 1}</strong>
+                    ${result.prompt ? '<br><small>' + result.prompt + '</small>' : ''}
+                    ${result.rating ? '<br>Rating: ' + result.rating + '/10' : ''}
+                </div>
+                <div style="margin-top: 10px;">
+                    <button onclick="downloadImage('${result.url}', 'generated_${index + 1}.png')" 
+                            class="btn" style="background: #e2e8f0; color: #4a5568; font-size: 0.8rem; padding: 5px 10px;">
+                        💾 Download
+                    </button>
+                </div>
+            `;
+            container.appendChild(resultDiv);
+        });
+        
+        document.getElementById('generationResults').style.display = 'block';
+        document.getElementById('generationResults').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function hideResults() {
+        document.getElementById('generationResults').style.display = 'none';
+    }
+
+    function downloadImage(url, filename) {
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = url;
+        link.click();
+    }
+
+    function showLoading(message) {
+        document.getElementById('generationMessage').textContent = message;
+        document.getElementById('generationLoading').style.display = 'block';
+    }
+
+    function hideLoading() {
+        document.getElementById('generationLoading').style.display = 'none';
+    }
+
+    // Initialize safety descriptions on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSingleSafetyDesc();
+        updateAdvancedSafetyDesc();
+    });
+</script>
+{% endblock %}

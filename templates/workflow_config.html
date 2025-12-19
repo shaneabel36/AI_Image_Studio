@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}AI Workflow Configuration - Flask App{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1>⚙️ AI Workflow Configuration</h1>
+    <a href="/" class="btn btn-primary">🏠 Back to Dashboard</a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div style="padding: 15px; margin: 20px 0; border-radius: 10px; 
+                        background: {% if category == 'error' %}#fed7d7{% else %}#c6f6d5{% endif %}; 
+                        color: {% if category == 'error' %}#c53030{% else %}#2f855a{% endif %};">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<form method="POST" style="max-width: 800px; margin: 0 auto;">
+    <div class="form-group">
+        <label for="api_key">🔑 OpenRouter API Key:</label>
+        <input type="password" id="api_key" name="api_key" class="form-control" 
+               placeholder="Enter your OpenRouter API key" required>
+        <small style="color: #718096; margin-top: 5px; display: block;">
+            Get your API key from <a href="https://openrouter.ai" target="_blank" style="color: #667eea;">openrouter.ai</a>
+        </small>
+    </div>
+
+    <div class="form-group">
+        <label for="base_prompt">🎨 Base Prompt:</label>
+        <textarea id="base_prompt" name="base_prompt" class="form-control" rows="3" 
+                  placeholder="Describe the type of images you want to generate">{{ config.base_prompt or 'A beautiful landscape in artistic style' }}</textarea>
+        <small style="color: #718096; margin-top: 5px; display: block;">
+            This prompt will be used as the base for all generated images
+        </small>
+    </div>
+
+    <div class="form-group">
+        <label for="batch_size">📊 Batch Size:</label>
+        <select id="batch_size" name="batch_size" class="form-control">
+            <option value="1" {% if config.batch_size == 1 %}selected{% endif %}>1 image (fastest)</option>
+            <option value="2" {% if config.batch_size == 2 %}selected{% endif %}>2 images</option>
+            <option value="3" {% if config.batch_size == 3 or not config.batch_size %}selected{% endif %}>3 images (recommended)</option>
+            <option value="4" {% if config.batch_size == 4 %}selected{% endif %}>4 images</option>
+            <option value="5" {% if config.batch_size == 5 %}selected{% endif %}>5 images (maximum)</option>
+        </select>
+        <small style="color: #718096; margin-top: 5px; display: block;">
+            Number of images to generate in each batch (more images = longer processing time)
+        </small>
+    </div>
+
+    <div class="form-group">
+        <label for="gen_model">🤖 Generation Model:</label>
+        <select id="gen_model" name="gen_model" class="form-control">
+            <option value="black-forest-labs/flux-schnell" {% if config.gen_model == 'black-forest-labs/flux-schnell' or not config.gen_model %}selected{% endif %}>
+                Flux Schnell (Fast & Good Quality)
+            </option>
+            <option value="black-forest-labs/flux-pro" {% if config.gen_model == 'black-forest-labs/flux-pro' %}selected{% endif %}>
+                Flux Pro (Highest Quality)
+            </option>
+            <option value="stability-ai/stable-diffusion-3-medium" {% if config.gen_model == 'stability-ai/stable-diffusion-3-medium' %}selected{% endif %}>
+                Stable Diffusion 3 Medium
+            </option>
+        </select>
+        <small style="color: #718096; margin-top: 5px; display: block;">
+            Choose the AI model for image generation (Pro models cost more but produce better results)
+        </small>
+    </div>
+
+    <div class="form-group">
+        <label for="vision_model">👁️ Vision Analysis Model:</label>
+        <select id="vision_model" name="vision_model" class="form-control">
+            <option value="x-ai/grok-vision-beta" {% if config.vision_model == 'x-ai/grok-vision-beta' or not config.vision_model %}selected{% endif %}>
+                Grok Vision Beta (Recommended)
+            </option>
+            <option value="openai/gpt-4o" {% if config.vision_model == 'openai/gpt-4o' %}selected{% endif %}>
+                GPT-4 Vision
+            </option>
+            <option value="anthropic/claude-3.5-sonnet" {% if config.vision_model == 'anthropic/claude-3.5-sonnet' %}selected{% endif %}>
+                Claude 3.5 Sonnet
+            </option>
+        </select>
+        <small style="color: #718096; margin-top: 5px; display: block;">
+            Model used to analyze and rate generated images
+        </small>
+    </div>
+
+    <div class="system-info" style="margin: 30px 0;">
+        <h3>🛡️ Content Safety & Moderation</h3>
+        <p>Configure content filtering and safety parameters for image generation</p>
+    </div>
+
+    <div class="form-group">
+        <label for="safety_level">🔒 Safety Level:</label>
+        <select id="safety_level" name="safety_level" class="form-control" onchange="updateSafetyDescription()">
+            <option value="strict" {% if config.safety_level == 'strict' %}selected{% endif %}>🔴 Strict - Maximum filtering</option>
+            <option value="moderate" {% if config.safety_level == 'moderate' or not config.safety_level %}selected{% endif %}>🟡 Moderate - Balanced filtering (Default)</option>
+            <option value="permissive" {% if config.safety_level == 'permissive' %}selected{% endif %}>🟠 Permissive - Minimal filtering</option>
+            <option value="off" {% if config.safety_level == 'off' %}selected{% endif %}>⚪ Off - No content filtering</option>
+        </select>
+        <div id="safety_description" style="margin-top: 10px; padding: 10px; border-radius: 8px; font-size: 0.9rem;">
+            <!-- Description will be updated by JavaScript -->
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+            <input type="checkbox" id="content_filter" name="content_filter" 
+                   {% if config.content_filter != False %}checked{% endif %}
+                   style="transform: scale(1.2);">
+            <span>🚫 Enable Additional Content Filter</span>
+        </label>
+        <small style="color: #718096; margin-left: 32px;">
+            Applies extra filtering on top of the safety level (recommended for most users)
+        </small>
+    </div>
+
+    <div class="form-group">
+        <button type="submit" class="btn btn-primary">💾 Save Configuration</button>
+        <a href="/" class="btn" style="background: #e2e8f0; color: #4a5568; margin-left: 10px;">Cancel</a>
+        <a href="/generator" class="btn btn-primary" style="margin-left: 10px;">🎨 Advanced Generator</a>
+    </div>
+</form>
+
+<div class="system-info">
+    <h3>💡 Tips for Best Results</h3>
+    <ul style="padding-left: 20px; line-height: 1.8;">
+        <li><strong>API Key:</strong> Keep your API key secure and never share it</li>
+        <li><strong>Prompts:</strong> Be specific and descriptive for better image quality</li>
+        <li><strong>Batch Size:</strong> Start with 3 images to balance quality and speed</li>
+        <li><strong>Models:</strong> Flux Schnell is great for testing, Pro for final results</li>
+        <li><strong>Cost:</strong> Monitor your OpenRouter usage to control costs</li>
+    </ul>
+</div>
+
+<div class="system-info">
+    <h3>🔗 Useful Links</h3>
+    <p>
+        <a href="https://openrouter.ai" target="_blank" style="color: #667eea;">OpenRouter Dashboard</a> - 
+        <a href="https://openrouter.ai/docs" target="_blank" style="color: #667eea;">API Documentation</a> - 
+        <a href="https://openrouter.ai/models" target="_blank" style="color: #667eea;">Available Models</a>
+    </p>
+</div>
+
+<div class="footer">
+    <p>🔧 Configure your AI workflow for optimal image generation</p>
+</div>
+
+<script>
+function updateSafetyDescription() {
+    const safetyLevel = document.getElementById('safety_level').value;
+    const descriptionDiv = document.getElementById('safety_description');
+    
+    const descriptions = {
+        'strict': {
+            text: 'Maximum content filtering. Blocks most potentially sensitive content including artistic nudity, violence, and controversial themes. Best for family-friendly or professional use.',
+            color: '#fed7d7',
+            textColor: '#c53030'
+        },
+        'moderate': {
+            text: 'Balanced filtering approach. Blocks clearly inappropriate content while allowing artistic and creative expression. Recommended for most users.',
+            color: '#fef5e7',
+            textColor: '#d69e2e'
+        },
+        'permissive': {
+            text: 'Minimal content filtering. Only blocks the most extreme content. Allows more creative freedom but requires responsible use.',
+            color: '#fed7d7',
+            textColor: '#dd6b20'
+        },
+        'off': {
+            text: 'No content filtering applied. Full creative freedom but user is responsible for ensuring appropriate use. May violate some platform terms of service.',
+            color: '#e2e8f0',
+            textColor: '#4a5568'
+        }
+    };
+    
+    const desc = descriptions[safetyLevel];
+    descriptionDiv.style.backgroundColor = desc.color;
+    descriptionDiv.style.color = desc.textColor;
+    descriptionDiv.textContent = desc.text;
+}
+
+// Initialize description on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateSafetyDescription();
+});
+</script>
+{% endblock %}

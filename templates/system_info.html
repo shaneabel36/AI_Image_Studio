@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}System Information - Flask App{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1>⚙️ System Information</h1>
+    <a href="/" class="btn btn-primary">🏠 Back to Dashboard</a>
+</div>
+
+<div class="system-info">
+    <h3>🖥️ Platform Information</h3>
+    <pre>{{ info.platform }}</pre>
+</div>
+
+<div class="system-info">
+    <h3>🐍 Python Version</h3>
+    <pre>{{ info.python_version }}</pre>
+</div>
+
+<div class="system-info">
+    <h3>🌶️ Flask Version</h3>
+    <pre>{{ info.flask_version }}</pre>
+</div>
+
+<div class="system-info">
+    <h3>📁 Current Directory</h3>
+    <pre>{{ info.current_directory }}</pre>
+</div>
+
+<div class="system-info">
+    <h3>🔧 Environment Variables</h3>
+    <pre style="max-height: 400px; overflow-y: auto;">{% for key, value in info.environment.items() %}{{ key }}={{ value }}
+{% endfor %}</pre>
+</div>
+
+<div class="footer">
+    <p>📊 System information retrieved successfully</p>
+</div>
+{% endblock %}
